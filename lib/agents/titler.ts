@@ -48,6 +48,7 @@ export async function publishPosts() {
       stories: picks.map((a) => ({ id: a.id, original_title: a.title, summary: a.summary, category: a.category })),
     }),
     temperature: 0.8,
+    maxTokens: 300 + picks.length * 80,
   });
 
   const byId = new Map(result.items?.map((r) => [Number(r.id), r]) ?? []);

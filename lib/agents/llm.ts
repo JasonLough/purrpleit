@@ -17,9 +17,38 @@ type ChatOptions = {
   maxTokens?: number;
 };
 
-export async function chat({ system, user, temperature = 0.7, maxTokens = 3000 }: ChatOptions) {
+const RETRY_DELAYS_MS = [5_000, 20_000];
+
+function isRetryable(status: number, body: string) {
+  return status === 429 || status >= 500 || (status === 402 && body.includes("in_flight"));
+}
+
+export async function chat(opts: ChatOptions) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await request(opts);
+    if (res.ok) {
+      const data = await res.json();
+      const content: string | undefined = data?.choices?.[0]?.message?.content;
+      if (!content) throw new Error("LLM returned an empty response");
+      return content;
+    }
+    const body = await res.text();
+    if (attempt < RETRY_DELAYS_MS.length && isRetryable(res.status, body)) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+      continue;
+    }
+    if (res.status === 402) {
+      throw new Error(
+        `LLM 402 (out of credits for model ${MODEL}): add credits or switch LLM_MODEL to a cheaper model. ${body.slice(0, 200)}`,
+      );
+    }
+    throw new Error(`LLM ${res.status}: ${body.slice(0, 300)}`);
+  }
+}
+
+function request({ system, user, temperature = 0.7, maxTokens = 1500 }: ChatOptions) {
   if (!MODEL) throw new Error("LLM_MODEL is not set (see .env.example)");
-  const res = await fetch(`${BASE_URL}/chat/completions`, {
+  return fetch(`${BASE_URL}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -38,13 +67,6 @@ export async function chat({ system, user, temperature = 0.7, maxTokens = 3000 }
     }),
     signal: AbortSignal.timeout(120_000),
   });
-  if (!res.ok) {
-    throw new Error(`LLM ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  }
-  const data = await res.json();
-  const content: string | undefined = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("LLM returned an empty response");
-  return content;
 }
 
 /** Ask for JSON and parse it, tolerating code fences and chatter around the payload. */

@@ -29,6 +29,7 @@ export async function weighNews(maxBatches = 4) {
         stories: batch.map((a) => ({ id: a.id, category: a.category, title: a.title, summary: a.summary })),
       }),
       temperature: 0.2,
+      maxTokens: 1000,
     });
 
     const byId = new Map(result.items?.map((r) => [Number(r.id), r]) ?? []);

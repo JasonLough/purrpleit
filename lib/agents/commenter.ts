@@ -103,7 +103,7 @@ export async function generateThread(postId: number) {
       output_format: { comments: [{ author: "username", body: "text", replies: [{ author: "username", body: "text", replies: [] }] }] },
     }),
     temperature: 0.95,
-    maxTokens: 4000,
+    maxTokens: 2000,
   });
   return insertTree(postId, null, result.comments, personaMap(personas));
 }

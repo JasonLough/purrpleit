@@ -45,6 +45,7 @@ export async function classifyNews(maxBatches = 4) {
         stories: batch.map((a) => ({ id: a.id, title: a.title, snippet: a.snippet?.slice(0, 400) })),
       }),
       temperature: 0.2,
+      maxTokens: 1200,
     });
 
     const byId = new Map(result.items?.map((r) => [Number(r.id), r]) ?? []);
